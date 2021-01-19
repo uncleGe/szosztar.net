@@ -31,13 +31,13 @@ namespace szosztar.Models
         ///     The category
         /// </summary>
         [DataMember(Name = "category")]
-        public Category? category { get; set; }
+        public string category { get; set; }
 
         /// <summary>
         ///     The notes
         /// </summary>
         [DataMember(Name = "notes")]
-        public string? notes { get; set; }
+        public string notes { get; set; }
 
     }
 }

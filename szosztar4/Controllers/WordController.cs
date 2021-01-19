@@ -38,7 +38,6 @@ namespace szosztar.Controllers
             }
 
             return Ok(words);
-
         }
 
         // GET api/<WordController>/5
