@@ -13,19 +13,19 @@ namespace szosztar.Data
 {
     public class DataAccess: IDataAccess
     {
-        public readonly NpgsqlConnectionStringBuilder builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = "",
-            Port = 0,
-            Database = "",
-            Username = "",
-            Password = "",
-        };
-
+        public readonly NpgsqlConnectionStringBuilder builder;
         private readonly IConfiguration config;
         public DataAccess(IConfiguration config)
         {
             this.config = config;
+            this.builder = new NpgsqlConnectionStringBuilder
+            {
+                Host = config.GetValue<string>("DatabaseConnection:Host"),
+                Port = config.GetValue<int>("DatabaseConnection:Port"),
+                Database = config.GetValue<string>("DatabaseConnection:Database"),
+                Username = config.GetValue<string>("DatabaseConnection:Username"),
+                Password = config.GetValue<string>("DatabaseConnection:Password")
+            };
         }
 
         public async Task<IList<string>> GetCategories()
@@ -107,6 +107,7 @@ namespace szosztar.Data
             var results = 0;
             try
             {
+                //TODO: check for dupes before posting
                 using (NpgsqlConnection connection = new NpgsqlConnection(builder.ConnectionString))
                 {
                     Console.WriteLine("\nPosting data...");
@@ -196,6 +197,7 @@ namespace szosztar.Data
             var results = 0;
             try
             {
+                //TODO: check for dupes before posting
                 using (NpgsqlConnection connection = new NpgsqlConnection(builder.ConnectionString))
                 {
                     Console.WriteLine("\nGetting Category data...");
