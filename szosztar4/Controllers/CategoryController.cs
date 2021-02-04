@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using szosztar.Data.Interfaces;
+using szosztar.Logic.Interfaces;
 
 namespace szosztar.Controllers
 {
@@ -13,13 +14,17 @@ namespace szosztar.Controllers
     {
         //private readonly IWordLogic logic;
         private readonly IDataAccess dataAccess;
+        private readonly IAuthLogic authLogic;
+
         public CategoryController(
             //IWordLogic logic,
-            IDataAccess dataAccess
+            IDataAccess dataAccess,
+            IAuthLogic authLogic
             )
         {
             //this.logic = logic;
             this.dataAccess = dataAccess;
+            this.authLogic = authLogic;
         }
 
         /// <summary>
@@ -28,9 +33,16 @@ namespace szosztar.Controllers
         /// <returns>Categories</returns>
         // GET: api/<CategoryController>
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get([FromQuery] string auth)
         {
-            var result = await dataAccess.GetCategories();
+            var externalId = await authLogic.FirebaseAuthenticate(auth);
+
+            if (String.IsNullOrEmpty(externalId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await dataAccess.GetCategories(externalId);
 
             if (result == null)
             {
@@ -53,14 +65,21 @@ namespace szosztar.Controllers
         /// <returns>Success bool</returns>
         // POST api/<CategoryController>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] string category)
+        public async Task<IActionResult> Post([FromBody] string category, [FromQuery] string auth)
         {
+            var externalId = await authLogic.FirebaseAuthenticate(auth);
+
+            if (String.IsNullOrEmpty(externalId))
+            {
+                return Unauthorized();
+            }
+
             if (category == null)
             {
                 return BadRequest();
             }
 
-            var result = await dataAccess.PostCategory(category);
+            var result = await dataAccess.PostCategory(externalId, category);
 
             if (result)
             {

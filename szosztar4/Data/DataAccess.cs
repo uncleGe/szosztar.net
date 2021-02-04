@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Text;
-using szosztar.Models;
-using szosztar.Data.Interfaces;
+﻿using FirebaseAdmin.Auth;
 using Npgsql;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using szosztar.Models;
+using szosztar.Data.Interfaces;
 
 namespace szosztar.Data
 {
@@ -28,8 +27,93 @@ namespace szosztar.Data
             };
         }
 
-        public async Task<IList<string>> GetCategories()
+        public async Task<User> GetUser(string externalId)
         {
+            var user = new User();
+            try
+            {
+                using (NpgsqlConnection connection = new NpgsqlConnection(builder.ConnectionString))
+                {
+                    Console.WriteLine("\nQuerying users...");
+                    Console.WriteLine("=========================================\n");
+
+                    connection.Open();
+
+                    var sql = "SELECT user_id, external_id FROM public.users " +
+                              $"WHERE external_id = '{externalId}'" +
+                              ";";
+
+                    using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
+                    {
+                        using (NpgsqlDataReader reader = await command.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                user.userId = reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0);
+                                user.externalId = reader.IsDBNull(1) ? null : reader.GetString(1);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (NpgsqlException e)
+            {
+                Console.WriteLine("Exception: " + e.ToString());
+                return null;
+            }
+            Console.WriteLine("\nDone.");
+
+            return user;
+        }
+
+        public async Task<bool> PostUser(User user)
+        {
+            if (user == null ||
+                user.username == null ||
+                String.IsNullOrEmpty(user.externalId))
+            {
+                return false;
+            }
+
+            var results = 0;
+            try
+            {
+                //TODO: check for dupes before posting
+                using (NpgsqlConnection connection = new NpgsqlConnection(builder.ConnectionString))
+                {
+                    Console.WriteLine("\nPosting data...");
+                    Console.WriteLine("=========================================\n");
+
+                    connection.Open();
+
+                    var sql =
+                        "INSERT INTO public.users (external_id, username) " +
+                        $"VALUES('{user.externalId}', '{user.username}')" +
+                              ";";
+
+                    using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
+                    {
+                        results = await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (NpgsqlException e)
+            {
+                Console.WriteLine("Exception: " + e.ToString());
+            }
+            Console.WriteLine("\nDone");
+
+            return results > 0;
+        }
+
+        public async Task<IList<string>> GetCategories(string externalId)
+        {
+            var user = await GetUser(externalId);
+            if (user == null)
+            {
+                return null;
+            }
+
             var results = new List<string>();
             try
             {
@@ -40,7 +124,9 @@ namespace szosztar.Data
 
                     connection.Open();
 
-                    var sql = "SELECT category FROM public.categories";
+                    var sql = "SELECT category FROM public.categories " +
+                              $"WHERE user_id = {user.userId}" +
+                              ";";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
                     {
@@ -65,8 +151,14 @@ namespace szosztar.Data
             return results;
         }
 
-        public async Task<IDictionary<string, int?>> GetAndMapCategories()
+        public async Task<IDictionary<string, int?>> GetAndMapCategories(string externalId)
         {
+            var user = await GetUser(externalId);
+            if (user == null)
+            {
+                return null;
+            }
+
             var resultsDict = new Dictionary<string, int?>();
             try
             {
@@ -77,7 +169,9 @@ namespace szosztar.Data
 
                     connection.Open();
 
-                    var sql = "SELECT * FROM public.categories";
+                    var sql = "SELECT * FROM public.categories " +
+                              $"WHERE user_id = {user.userId}" +
+                              ";";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
                     {
@@ -102,8 +196,14 @@ namespace szosztar.Data
             return resultsDict;
         }
 
-        public async Task<bool> PostCategory(string category)
+        public async Task<bool> PostCategory(string externalId, string category)
         {
+            var user = await GetUser(externalId);
+            if (user == null)
+            {
+                return false;
+            }
+
             var results = 0;
             try
             {
@@ -116,8 +216,9 @@ namespace szosztar.Data
                     connection.Open();
 
                     var sql =
-                        "INSERT INTO public.categories (category)" +
-                        $"VALUES('{category}'); ";
+                        "INSERT INTO public.categories (category, user_id) " +
+                        $"VALUES('{category}', {user.userId})" +
+                              ";";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
                     {
@@ -134,16 +235,20 @@ namespace szosztar.Data
             return results > 0;
         }
 
-        public async Task<IList<Word>> GetWords()
+        public async Task<IList<Word>> GetWords(string externalId)
         {
+            var user = await GetUser(externalId);
+            if (user == null)
+            {
+                return null;
+            }
+
             var results = new List<Word>();
             try
             {
                 using (NpgsqlConnection connection = new NpgsqlConnection(builder.ConnectionString))
                 {
-                    Console.WriteLine("\nGetting Category data...");
-                    Console.WriteLine("=========================================\n");
-                    var categoryDict = await GetAndMapCategories();
+                    var categoryDict = await GetAndMapCategories(externalId);
                     if (categoryDict == null)
                     {
                         Console.WriteLine("\n Null Category data...");
@@ -158,7 +263,9 @@ namespace szosztar.Data
 
                     connection.Open();
 
-                    var sql = "SELECT * FROM public.words";
+                    var sql = "SELECT * FROM public.words " +
+                             $"WHERE user_id = {user.userId}" +
+                              ";";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
                     {
@@ -192,8 +299,14 @@ namespace szosztar.Data
         }
 
 
-        public async Task<bool> PostWord(Word word)
+        public async Task<bool> PostWord(string externalId, Word word)
         {
+            var user = await GetUser(externalId);
+            if (user == null)
+            {
+                return false;
+            }
+
             var results = 0;
             try
             {
@@ -202,7 +315,7 @@ namespace szosztar.Data
                 {
                     Console.WriteLine("\nGetting Category data...");
                     Console.WriteLine("=========================================\n");
-                    var categoryDict = await GetAndMapCategories();
+                    var categoryDict = await GetAndMapCategories(externalId);
                     if (categoryDict == null)
                     {
                         Console.WriteLine("\n Null Category data...");
@@ -228,8 +341,9 @@ namespace szosztar.Data
                     string notes = word.notes ?? "null";
 
                     var sql =
-                        "INSERT INTO public.words (english, hungarian, category_id, notes) " +
-                        $"VALUES('{word.english}', '{word.hungarian}', {category}, '{notes}');";
+                        "INSERT INTO public.words (english, hungarian, category_id, notes, user_id) " +
+                        $"VALUES('{word.english}', '{word.hungarian}', {category}, '{notes}', {user.userId})" +
+                              ";";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(sql, connection))
                     {

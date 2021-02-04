@@ -15,10 +15,12 @@ namespace szosztar.Controllers
     public class WordController : ControllerBase
     {
         private readonly IWordLogic logic;
+        private readonly IAuthLogic authLogic;
         private readonly IDataAccess dataAccess;
-        public WordController(IWordLogic logic, IDataAccess dataAccess)
+        public WordController(IWordLogic logic, IAuthLogic authLogic, IDataAccess dataAccess)
         {
             this.logic = logic;
+            this.authLogic = authLogic;
             this.dataAccess = dataAccess;
         }
 
@@ -28,15 +30,25 @@ namespace szosztar.Controllers
         /// <returns>Some <see cref="Word"/>s</returns>
         // GET: api/<WordController>
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get([FromQuery] string auth)
         {
-            var words = await logic.ProcessWords();
+            var externalId = await authLogic.FirebaseAuthenticate(auth);
+
+            if (String.IsNullOrEmpty(externalId))
+            {
+                return Unauthorized();
+            }
+
+            var words = await logic.ProcessWords(externalId);
+
 
             if (words == null)
             {
+                Console.WriteLine("word get 6");
+
                 return NotFound();
             }
-
+            Console.WriteLine("word get 7");
             return Ok(words);
         }
 
@@ -74,14 +86,21 @@ namespace szosztar.Controllers
         /// </summary>
         /// <returns>Success bool </returns>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] Word word)
+        public async Task<IActionResult> Post([FromBody] Word word, [FromQuery] string auth)
         {
+            var externalId = await authLogic.FirebaseAuthenticate(auth);
+
+            if (String.IsNullOrEmpty(externalId))
+            {
+                return Unauthorized();
+            }
+
             if (word == null)
             {
                 return BadRequest();
             }
 
-            var result = await dataAccess.PostWord(word);
+            var result = await dataAccess.PostWord(externalId, word);
 
             if (result)
             {

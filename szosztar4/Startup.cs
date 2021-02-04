@@ -1,3 +1,5 @@
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -15,12 +17,21 @@ namespace szosztar
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
             Configuration = configuration;
+            
+            //Environment = env;
+            //var builder = new ConfigurationBuilder()
+            //    .SetBasePath(env.ContentRootPath)
+            //    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            //    .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true)
+            //    .AddEnvironmentVariables();
+            // = builder.Build();
         }
 
         public IConfiguration Configuration { get; }
+        //public IWebHostEnvironment Environment { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -29,6 +40,22 @@ namespace szosztar
 
             services.AddScoped<IWordLogic, WordLogic>();
             services.AddScoped<IDataAccess, DataAccess>();
+            services.AddScoped<IAuthLogic, AuthLogic>();
+
+            //AppSettings _settings = new AppSettings();
+            //services.AddControllersWithViews();
+            //Configuration.GetSection("AppSettings").Bind(_settings);// bind is necessary
+            //services.AddSingleton(_settings);
+
+            //var authKey = Configuration.GetSection("AuthConnection");
+
+            //var pathToKey = Path.Combine(Directory.GetCurrentDirectory(), "szosztar0-cf5c05582099.json");
+
+            FirebaseApp.Create(new AppOptions()
+            {
+                //Credential = GoogleCredential.FromFile(pathToKey)
+                Credential = GoogleCredential.GetApplicationDefault(),
+            });
 
             services.AddSwaggerGen(options =>
             {
@@ -125,12 +152,12 @@ namespace szosztar
                 feature.AddPolicy(
                     "CorsPolicy",
                     apiPolicy => apiPolicy
-                                    //.AllowAnyOrigin()
+                                    .AllowAnyOrigin()
                                     //.WithOrigins("http://localhost:4200")
                                     .AllowAnyHeader()
                                     .AllowAnyMethod()
                                     .SetIsOriginAllowed(host => true)
-                                    .AllowCredentials()
+                                    //.AllowCredentials()
                                 ));
         }
 
@@ -154,15 +181,16 @@ namespace szosztar
 
             app.UseCors(opts =>
             {
-                opts.WithOrigins(new string[]
-                {
-                "http://localhost:4200"
-                    // whatever domain/port u are using
-                });
-
+                //opts.WithOrigins(new string[]
+                //{
+                //"http://localhost:4200",
+                //"https://szosztar0.web.app/"
+                //    // whatever domain/port u are using
+                //});
+                opts.AllowAnyOrigin();
                 opts.AllowAnyHeader();
                 opts.AllowAnyMethod();
-                opts.AllowCredentials();
+                //opts.AllowCredentials();
             });
 
             app.UseAuthorization();

@@ -17,9 +17,9 @@ namespace szosztar.Logic
             this.dataAccess = dataAccess;
         }
 
-        public async Task<IList<Word>> ProcessWords()
+        public async Task<IList<Word>> ProcessWords(string userId)
         {
-            return await dataAccess.GetWords();
+            return await dataAccess.GetWords(userId);
         }
 
         public IList<Word> ReturnDummyWords()

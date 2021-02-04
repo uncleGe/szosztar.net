@@ -15,6 +15,6 @@ namespace szosztar.Logic.Interfaces
         ///     Sorts words
         /// </summary>
         /// <returns>A list of words</returns>
-        Task<IList<Word>> ProcessWords();
+        Task<IList<Word>> ProcessWords(string externalId);
     }
 }
